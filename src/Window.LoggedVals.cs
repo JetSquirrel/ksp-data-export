@@ -57,8 +57,7 @@ namespace KSPDataExport
             for (int i = 0; i < Enum.GetValues(typeof(Category)).Length; i++)
             {
                 Category category = (Category)i;
-                var categoryValues = DataExport.LoggableValues.Where(v => v.Category == category).OrderBy(v => v.Name)
-                    .ToList();
+                var categoryValues = DataExport.LoggableValues.Where(v => v.Category == category).ToList();
                 if (categoryValues.Count == 0) continue;
 
                 // Category Header
