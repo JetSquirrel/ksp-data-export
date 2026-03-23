@@ -33,6 +33,44 @@ This video goes in-depth on how to use the mod:
 
 [![Help Video](https://img.youtube.com/vi/3s2SctniVLM/0.jpg)](https://www.youtube.com/watch?v=3s2SctniVLM)
 
+## Prometheus Exporter
+
+The mod now supports exporting flight data in Prometheus format for real-time monitoring!
+
+### Configuration
+
+Edit `/GameData/DataExport/logged.vals` to configure:
+
+```
+prometheusEnabled=True    # Enable/disable the exporter
+prometheusPort=9101       # HTTP server port (default: 9101)
+```
+
+### Usage
+
+Once enabled in-flight, metrics are available at:
+
+-   `http://localhost:9101/metrics` - Prometheus metrics endpoint
+-   `http://localhost:9101/` - Basic info page
+
+### Prometheus Configuration
+
+Add this to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'ksp'
+    static_configs:
+      - targets: ['localhost:9101']
+```
+
+All enabled loggable values are exported as Prometheus metrics with labels for vessel name and category. Example metrics:
+
+-   `ksp_surface_speed_m_per_s`
+-   `ksp_altitude_from_terrain_m`
+-   `ksp_apoapsis_m`
+-   `ksp_mission_time_seconds`
+
 ## Support
 
 [Email me with any questions or comments](mailto:krisharora27@gmail.com)
