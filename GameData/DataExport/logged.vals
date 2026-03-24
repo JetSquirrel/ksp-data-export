@@ -1,6 +1,10 @@
 // Log by default
 defaultLogState=False
 
+// Prometheus Exporter
+prometheusEnabled=True
+prometheusPort=9101
+
 // Vessel
 logSrfSpeed=True
 logGForce=True

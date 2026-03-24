@@ -89,6 +89,7 @@
     <Compile Include="Config.cs" />
     <Compile Include="DataExport.cs" />
     <Compile Include="LoggableValue.cs" />
+    <Compile Include="PrometheusExporter.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="Window.Main.cs" />
     <Compile Include="Window.LoggedVals.cs" />

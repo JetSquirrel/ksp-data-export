@@ -58,6 +58,34 @@ namespace KSPDataExport
         }
 
         /// <summary>
+        ///     Gets a string value from a file
+        /// </summary>
+        /// <param name="filePath">Path of the file</param>
+        /// <param name="valueName">The name of the value you want to search for</param>
+        /// <returns>The string value from the file, or empty string if not found</returns>
+        public static string GetValueString(string filePath, string valueName)
+        {
+            try
+            {
+                foreach (string line in File.ReadLines(filePath))
+                {
+                    // Skip line if it starts with a comment
+                    if (line.StartsWith("//")) continue;
+                    //Split string on equals sign
+                    string[] lineSides = line.Split('=');
+                    if (lineSides[0] == valueName && lineSides.Length > 1)
+                        //Return right side of split line
+                        return lineSides[1];
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log("[DataExport] Unable to read string value: " + e);
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
         ///     Sets a value from the filePath, given the valueName and the value to set it as
         /// </summary>
         /// <param name="filePath">Path of the file</param>
