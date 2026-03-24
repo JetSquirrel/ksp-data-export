@@ -6,9 +6,34 @@
 
 **[Forum Thread](https://forum.kerbalspaceprogram.com/index.php?/topic/201967-111x-export-flight-data-to-a-csv-file-mod)**
 
-Ever wanted to view your KSP flight data in a graph? Well, this mod allows you to do that! Simply choose which values you would like to log, and all of your flight data will get exported to a CSV file!
+Ever wanted to view your KSP flight data in a graph? Well, this mod allows you to do that! This mod exports flight telemetry data in two powerful ways:
 
-You can then open this CSV file in a program such as Excel and make as many charts and graphs as you desire!
+- **CSV Export**: Export flight data to CSV files for analysis in Excel, Google Sheets, or any spreadsheet program. Create custom charts and graphs from your flight data!
+
+- **Prometheus Exporter**: Real-time metrics server for monitoring your flights with Prometheus and Grafana. Perfect for live dashboards and advanced monitoring!
+
+Choose the export method that fits your needs, or use both simultaneously!
+
+## Features
+
+### CSV Export
+- Export 28+ different flight parameters including:
+  - Vessel dynamics (speed, acceleration, thrust, TWR, mass)
+  - Position data (altitude, coordinates, downrange distance)
+  - Orbital mechanics (apoapsis, periapsis, inclination, orbital velocity)
+  - Targeting data (target distance and speed)
+  - Resources (stage/vessel delta-v)
+  - Science values (pressure, external temperature)
+- Configurable logging via GUI and config file
+- Automatic file generation with timestamps
+- Adjustable logging intervals
+
+### Prometheus Exporter
+- Real-time HTTP metrics server (port 9101 by default)
+- Compatible with Prometheus + Grafana for live dashboards
+- All loggable values exposed as metrics
+- Proper metric naming with labels (vessel name, category)
+- Zero external dependencies, minimal performance impact
 
 ## Reporting Bugs
 
@@ -35,27 +60,30 @@ This video goes in-depth on how to use the mod:
 
 ## Prometheus Exporter
 
-The mod now supports exporting flight data in Prometheus format for real-time monitoring!
+The mod includes a built-in HTTP server that exports flight data in Prometheus format for real-time monitoring and visualization!
 
-### Configuration
+### Features
 
-Edit `/GameData/DataExport/logged.vals` to configure:
+- Real-time metrics exposed via HTTP on port 9101 (configurable)
+- All 28+ flight parameters available as Prometheus metrics
+- Integration with Grafana for beautiful dashboards
+- Minimal performance impact (runs on background thread)
+- Zero external dependencies
+
+### Quick Start
+
+1. **Enable the exporter** by editing `/GameData/DataExport/logged.vals`:
 
 ```
 prometheusEnabled=True    # Enable/disable the exporter
 prometheusPort=9101       # HTTP server port (default: 9101)
 ```
 
-### Usage
+2. **Launch KSP** and start a flight
 
-Once enabled in-flight, metrics are available at:
+3. **View metrics** at `http://localhost:9101/metrics`
 
--   `http://localhost:9101/metrics` - Prometheus metrics endpoint
--   `http://localhost:9101/` - Basic info page
-
-### Prometheus Configuration
-
-Add this to your `prometheus.yml`:
+4. **Configure Prometheus** by adding to your `prometheus.yml`:
 
 ```yaml
 scrape_configs:
@@ -64,12 +92,25 @@ scrape_configs:
       - targets: ['localhost:9101']
 ```
 
+### Available Metrics
+
 All enabled loggable values are exported as Prometheus metrics with labels for vessel name and category. Example metrics:
 
--   `ksp_surface_speed_m_per_s`
--   `ksp_altitude_from_terrain_m`
--   `ksp_apoapsis_m`
--   `ksp_mission_time_seconds`
+-   `ksp_surface_speed_m_per_s` - Surface speed
+-   `ksp_altitude_from_terrain_m` - Altitude from terrain
+-   `ksp_apoapsis_m` - Apoapsis altitude
+-   `ksp_periapsis_m` - Periapsis altitude
+-   `ksp_gforce_g` - G-force
+-   `ksp_mission_time_seconds` - Mission elapsed time
+
+### Detailed Documentation
+
+For complete setup instructions, Grafana integration, and troubleshooting:
+
+- **[PROMETHEUS.md](PROMETHEUS.md)** - Complete English guide with Grafana dashboard examples
+- **[PROMETHEUS_CN.md](PROMETHEUS_CN.md)** - 完整的中文指南 (Complete Chinese guide)
+- **[EXAMPLE_METRICS.md](EXAMPLE_METRICS.md)** - Sample metrics output
+- **[prometheus.yml.example](prometheus.yml.example)** - Example Prometheus configuration
 
 ## Support
 
