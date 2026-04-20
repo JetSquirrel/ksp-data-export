@@ -1,2 +1,5 @@
 GameData/DataExport/*.dll
 GameData/DataExport/*.pdb
+
+.claude
+.vscode
