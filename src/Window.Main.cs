@@ -17,6 +17,7 @@ namespace KSPDataExport
         private static bool _showLoggedVals;
         private bool _wasLoggingStoppedByInvalidRate;
         private string _logRateInput;
+        private bool _dialogStructureBuilt;
 
         // --- PopupDialog References ---
         private PopupDialog _mainDialog;
@@ -32,9 +33,14 @@ namespace KSPDataExport
             _logRateInput = DataExport.WaitTime.ToString(CultureInfo.InvariantCulture);
             ShowGUI = false;
             _showLoggedVals = false;
+            _dialogStructureBuilt = false;
             DataExport.IsLogging = Config.GetValue(DataExport.CfgPath, "defaultLogState");
 
-            BuildLoggedValuesDialogStructure();
+            if (DataExport.LoggableValues != null)
+            {
+                BuildLoggedValuesDialogStructure();
+                _dialogStructureBuilt = true;
+            }
         }
 
         private void OnDestroy()
@@ -45,6 +51,12 @@ namespace KSPDataExport
 
         private void Update()
         {
+            if (!_dialogStructureBuilt && DataExport.LoggableValues != null)
+            {
+                BuildLoggedValuesDialogStructure();
+                _dialogStructureBuilt = true;
+            }
+
             if (ShowGUI)
             {
                 ShowWindow();

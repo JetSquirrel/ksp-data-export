@@ -25,8 +25,8 @@ namespace KSPDataExport
                 ? Directory.GetParent(Directory.GetParent(Application.dataPath)!.ToString())!.ToString()
                 : Directory.GetParent(Application.dataPath)!.ToString();
 
-            _appIconPath = basePath + @"/GameData/DataExport/icon.png";
-            _activeIconPath = basePath + @"/GameData/DataExport/active.png";
+            _appIconPath = Path.Combine(basePath, "GameData", "DataExport", "icon.png");
+            _activeIconPath = Path.Combine(basePath, "GameData", "DataExport", "active.png");
 
             Debug.Log("[Data Export] Launcher Initialized");
 

@@ -6,13 +6,15 @@
 
 **[Forum Thread](https://forum.kerbalspaceprogram.com/index.php?/topic/201967-111x-export-flight-data-to-a-csv-file-mod)**
 
-Ever wanted to view your KSP flight data in a graph? Well, this mod allows you to do that! This mod exports flight telemetry data in two powerful ways:
+Ever wanted to view your KSP flight data in a graph? Well, this mod allows you to do that! This mod exports flight telemetry data in three powerful ways:
 
 - **CSV Export**: Export flight data to CSV files for analysis in Excel, Google Sheets, or any spreadsheet program. Create custom charts and graphs from your flight data!
 
 - **Prometheus Exporter**: Real-time metrics server for monitoring your flights with Prometheus and Grafana. Perfect for live dashboards and advanced monitoring!
 
-Choose the export method that fits your needs, or use both simultaneously!
+- **GreptimeDB Exporter**: Push telemetry directly to GreptimeDB (or any InfluxDB-compatible database) using InfluxDB Line Protocol. Ideal for high-performance time-series storage and analytics!
+
+Choose the export method that fits your needs, or use all three simultaneously!
 
 ## Features
 
@@ -27,13 +29,28 @@ Choose the export method that fits your needs, or use both simultaneously!
 - Configurable logging via GUI and config file
 - Automatic file generation with timestamps
 - Adjustable logging intervals
+- Supports vessel switching during flight
 
 ### Prometheus Exporter
 - Real-time HTTP metrics server (port 9101 by default)
 - Compatible with Prometheus + Grafana for live dashboards
 - All loggable values exposed as metrics
 - Proper metric naming with labels (vessel name, category)
-- Zero external dependencies, minimal performance impact
+- Thread-safe metric snapshotting - zero impact on game performance
+- Zero external dependencies
+
+### GreptimeDB Exporter
+- Push metrics to GreptimeDB using InfluxDB Line Protocol
+- Configurable endpoint, database, and authentication
+- Automatic batching and exponential backoff on errors
+- Background thread sending - no frame drops
+- Works with any InfluxDB-compatible endpoint
+
+### Reliability
+- Thread-safe config file access
+- Graceful error handling with automatic recovery
+- Vessel switching support (EVA, docking, scene changes)
+- Correct TWR calculation for any celestial body
 
 ## Reporting Bugs
 
@@ -41,7 +58,7 @@ If you encounter any bugs or have any suggestions, report them at https://github
 
 ## Installation
 
-This mod works on Windows, MacOS, and Linux.
+This mod works on Windows
 
 This mod is available on [CKAN](https://github.com/KSP-CKAN/CKAN), [SpaceDock](https://spacedock.info/mod/2711/KSP%20Data%20Export), and [CurseForge](https://www.curseforge.com/kerbal/ksp-mods/data-export).
 
@@ -58,17 +75,35 @@ This video goes in-depth on how to use the mod:
 
 [![Help Video](https://img.youtube.com/vi/3s2SctniVLM/0.jpg)](https://www.youtube.com/watch?v=3s2SctniVLM)
 
+## Configuration
+
+Edit `/GameData/DataExport/logged.vals` to configure the mod:
+
+```
+// CSV Logging
+defaultLogState=False       # Start logging automatically when entering flight
+
+// Prometheus Exporter
+prometheusEnabled=True      # Enable/disable the Prometheus HTTP server
+prometheusPort=9101         # HTTP server port
+
+// GreptimeDB Exporter (InfluxDB Line Protocol)
+greptimeEnabled=True        # Enable/disable GreptimeDB pushing
+greptimeUrl=http://localhost:4000
+greptimeDatabase=public
+greptimeUsername=
+greptimePassword=
+greptimeInterval=1          # Send interval in seconds
+
+// Per-metric toggles
+logSrfSpeed=True
+logGForce=True
+...
+```
+
 ## Prometheus Exporter
 
 The mod includes a built-in HTTP server that exports flight data in Prometheus format for real-time monitoring and visualization!
-
-### Features
-
-- Real-time metrics exposed via HTTP on port 9101 (configurable)
-- All 28+ flight parameters available as Prometheus metrics
-- Integration with Grafana for beautiful dashboards
-- Minimal performance impact (runs on background thread)
-- Zero external dependencies
 
 ### Quick Start
 
@@ -108,9 +143,37 @@ All enabled loggable values are exported as Prometheus metrics with labels for v
 For complete setup instructions, Grafana integration, and troubleshooting:
 
 - **[PROMETHEUS.md](PROMETHEUS.md)** - Complete English guide with Grafana dashboard examples
-- **[PROMETHEUS_CN.md](PROMETHEUS_CN.md)** - 完整的中文指南 (Complete Chinese guide)
+- **[PROMETHEUS_CN.md](PROMETHEUS_CN.md)** - Complete Chinese guide (完整的中文指南)
 - **[EXAMPLE_METRICS.md](EXAMPLE_METRICS.md)** - Sample metrics output
 - **[prometheus.yml.example](prometheus.yml.example)** - Example Prometheus configuration
+
+## GreptimeDB Exporter
+
+Push flight telemetry directly to GreptimeDB or any InfluxDB-compatible time-series database.
+
+### Quick Start
+
+1. **Enable the exporter** by editing `/GameData/DataExport/logged.vals`:
+
+```
+greptimeEnabled=True              # Enable/disable the exporter
+greptimeUrl=http://localhost:4000 # GreptimeDB HTTP endpoint
+greptimeDatabase=public           # Database name
+greptimeInterval=1                # Push interval in seconds (min 0.5)
+```
+
+2. **Launch KSP** and start a flight
+
+3. Data will be automatically pushed to your GreptimeDB instance
+
+### Authentication (optional)
+
+If your GreptimeDB instance requires authentication:
+
+```
+greptimeUsername=your_username
+greptimePassword=your_password
+```
 
 ## Support
 

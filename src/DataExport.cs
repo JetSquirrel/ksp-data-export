@@ -35,22 +35,18 @@ namespace KSPDataExport
         private void Start()
         {
             Debug.Log("[Data Export] Initialized");
-            DataPath = @"/GameData/DataExport/graphs/";
-            CfgPath = @"/GameData/DataExport/logged.vals";
-
             ActVess = FlightGlobals.ActiveVessel;
             LaunchBody = ActVess.mainBody;
             LaunchLat = Utilities.DegToRad(ActVess.latitude);
             LaunchLon = Utilities.DegToRad(ActVess.longitude);
 
             CsvName = ActVess.GetDisplayName() + "_" + DateTime.Now.ToString("MMddHHmm") + ".csv";
-            CsvPath = @"/GameData/DataExport/graphs/" + CsvName;
             _appPath = Application.platform == RuntimePlatform.OSXPlayer
                 ? Directory.GetParent(Directory.GetParent(Application.dataPath)?.ToString() ?? string.Empty)?.ToString()
                 : Directory.GetParent(Application.dataPath)?.ToString();
-            DataPath = _appPath + DataPath;
-            CfgPath = _appPath + CfgPath;
-            CsvPath = _appPath + CsvPath;
+            DataPath = Path.Combine(_appPath, "GameData", "DataExport", "graphs");
+            CfgPath = Path.Combine(_appPath, "GameData", "DataExport", "logged.vals");
+            CsvPath = Path.Combine(_appPath, "GameData", "DataExport", "graphs", CsvName);
             if (!Directory.Exists(DataPath)) Directory.CreateDirectory(DataPath);
             if (File.Exists(CsvPath))
             {
@@ -82,7 +78,7 @@ namespace KSPDataExport
                 new LoggableValue("Thrust (kN)", Category.Vessel, "logThrust",
                     () => Utilities.RoundToStr(Utilities.GetThrust(), 2)),
                 new LoggableValue("TWR", Category.Vessel, "logTWR",
-                    () => Utilities.RoundToStr(Utilities.GetThrust() / (ActVess.GetTotalMass() * 10), 2)),
+                    () => Utilities.RoundToStr(Utilities.GetThrust() / (ActVess.GetTotalMass() * ActVess.graviticAcceleration.magnitude), 2)),
                 new LoggableValue("Mass (t)", Category.Vessel, "logMass",
                     () => Utilities.RoundToStr(ActVess.GetTotalMass(), 2)),
                 new LoggableValue("Pitch (deg)", Category.Vessel, "logPitch",
@@ -155,6 +151,7 @@ namespace KSPDataExport
 
         private void FixedUpdate()
         {
+            ActVess = FlightGlobals.ActiveVessel;
             if (!IsLogging) return;
             // Create the CSV folder if it does not exist
             if (!Directory.Exists(DataPath))

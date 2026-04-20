@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Net;
 using System.Text;
 using System.Threading;
 using UnityEngine;
@@ -14,12 +12,29 @@ namespace KSPDataExport
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class PrometheusExporter : MonoBehaviour
     {
-        private HttpListener _listener;
+        private System.Net.HttpListener _listener;
         private Thread _listenerThread;
         private bool _isRunning;
         public static bool IsEnabled;
         public static int Port = 9101;
-        private static readonly object _lock = new object();
+
+        private readonly object _snapshotLock = new object();
+        private MetricsSnapshot _snapshot;
+
+        private class MetricsSnapshot
+        {
+            public string VesselName;
+            public double MissionTime;
+            public Dictionary<string, MetricEntry> Metrics;
+        }
+
+        private class MetricEntry
+        {
+            public string Name;
+            public string Category;
+            public double Value;
+            public string Help;
+        }
 
         private void Start()
         {
@@ -42,13 +57,51 @@ namespace KSPDataExport
         }
 
         /// <summary>
+        ///     Refreshes the metric snapshot on the main thread so background HTTP threads never touch Unity APIs.
+        /// </summary>
+        private void FixedUpdate()
+        {
+            if (DataExport.LoggableValues == null || DataExport.ActVess == null) return;
+
+            var metrics = new Dictionary<string, MetricEntry>();
+
+            foreach (var lv in DataExport.LoggableValues)
+            {
+                if (!lv.Logging) continue;
+
+                string raw = lv.Value();
+                if (string.IsNullOrEmpty(raw)) continue;
+                if (!double.TryParse(raw, out double numericValue)) continue;
+
+                string metricName = ConvertToPrometheusName(lv.Name);
+                metrics[metricName] = new MetricEntry
+                {
+                    Name = metricName,
+                    Category = lv.Category.ToString().ToLower(),
+                    Value = numericValue,
+                    Help = lv.Name
+                };
+            }
+
+            lock (_snapshotLock)
+            {
+                _snapshot = new MetricsSnapshot
+                {
+                    VesselName = DataExport.ActVess.GetDisplayName(),
+                    MissionTime = DataExport.ActVess.missionTime,
+                    Metrics = metrics
+                };
+            }
+        }
+
+        /// <summary>
         ///     Starts the HTTP server on the configured port
         /// </summary>
         public void StartServer()
         {
             try
             {
-                _listener = new HttpListener();
+                _listener = new System.Net.HttpListener();
                 _listener.Prefixes.Add($"http://localhost:{Port}/");
                 _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
                 _listener.Start();
@@ -110,7 +163,7 @@ namespace KSPDataExport
                     var context = _listener.GetContext();
                     ThreadPool.QueueUserWorkItem(_ => ProcessRequest(context));
                 }
-                catch (HttpListenerException)
+                catch (System.Net.HttpListenerException)
                 {
                     // Expected when stopping the listener
                     if (!_isRunning) break;
@@ -125,7 +178,7 @@ namespace KSPDataExport
         /// <summary>
         ///     Processes a single HTTP request
         /// </summary>
-        private void ProcessRequest(HttpListenerContext context)
+        private void ProcessRequest(System.Net.HttpListenerContext context)
         {
             try
             {
@@ -150,9 +203,12 @@ namespace KSPDataExport
                 else if (request.Url.AbsolutePath == "/")
                 {
                     // Root endpoint - provide basic info
+                    MetricsSnapshot infoSnapshot;
+                    lock (_snapshotLock) { infoSnapshot = _snapshot; }
+                    string vessel = infoSnapshot != null ? infoSnapshot.VesselName : "N/A";
                     string html = "<html><body><h1>KSP Data Export - Prometheus Exporter</h1>" +
                                   $"<p>Metrics available at <a href=\"/metrics\">/metrics</a></p>" +
-                                  $"<p>Vessel: {(DataExport.ActVess != null ? DataExport.ActVess.GetDisplayName() : "N/A")}</p>" +
+                                  $"<p>Vessel: {vessel}</p>" +
                                   "</body></html>";
                     byte[] buffer = Encoding.UTF8.GetBytes(html);
 
@@ -187,81 +243,54 @@ namespace KSPDataExport
         }
 
         /// <summary>
-        ///     Generates metrics in Prometheus text exposition format
+        ///     Generates metrics in Prometheus text exposition format from the main-thread snapshot.
+        ///     This method runs on a background thread and must NOT touch Unity APIs.
         /// </summary>
         private string GeneratePrometheusMetrics()
         {
-            lock (_lock)
+            MetricsSnapshot snapshot;
+            lock (_snapshotLock)
             {
-                var sb = new StringBuilder();
+                snapshot = _snapshot;
+            }
 
-                // Add metadata comment
-                sb.AppendLine("# HELP ksp_data_export_info Information about the KSP Data Export mod");
-                sb.AppendLine("# TYPE ksp_data_export_info gauge");
-                sb.AppendLine("ksp_data_export_info{version=\"1.0\"} 1");
-                sb.AppendLine();
+            var sb = new StringBuilder();
 
-                // Check if we have valid data
-                if (DataExport.LoggableValues == null || DataExport.ActVess == null)
-                {
-                    return sb.ToString();
-                }
+            // Add metadata comment
+            sb.AppendLine("# HELP ksp_data_export_info Information about the KSP Data Export mod");
+            sb.AppendLine("# TYPE ksp_data_export_info gauge");
+            sb.AppendLine("ksp_data_export_info{version=\"1.0\"} 1");
+            sb.AppendLine();
 
-                // Add mission time
-                sb.AppendLine("# HELP ksp_mission_time_seconds Mission elapsed time in seconds");
-                sb.AppendLine("# TYPE ksp_mission_time_seconds counter");
-                sb.AppendLine($"ksp_mission_time_seconds{{vessel=\"{SanitizeLabelValue(DataExport.ActVess.GetDisplayName())}\"}} {DataExport.ActVess.missionTime:F2}");
-                sb.AppendLine();
-
-                // Group metrics by category
-                var metricsByCategory = new Dictionary<Category, List<LoggableValue>>();
-                foreach (var value in DataExport.LoggableValues)
-                {
-                    if (!metricsByCategory.ContainsKey(value.Category))
-                    {
-                        metricsByCategory[value.Category] = new List<LoggableValue>();
-                    }
-                    metricsByCategory[value.Category].Add(value);
-                }
-
-                // Generate metrics for each category
-                foreach (var category in metricsByCategory.Keys)
-                {
-                    foreach (var loggableValue in metricsByCategory[category])
-                    {
-                        // Only export values that are being logged
-                        if (!loggableValue.Logging) continue;
-
-                        string metricName = ConvertToPrometheusName(loggableValue.Name);
-                        string metricValue = loggableValue.Value();
-
-                        // Skip empty values
-                        if (string.IsNullOrEmpty(metricValue)) continue;
-
-                        // Parse the value to ensure it's numeric
-                        if (!double.TryParse(metricValue, out double numericValue))
-                        {
-                            continue;
-                        }
-
-                        // Add HELP and TYPE comments for each metric
-                        sb.AppendLine($"# HELP {metricName} {loggableValue.Name}");
-                        sb.AppendLine($"# TYPE {metricName} gauge");
-
-                        // Add the metric with labels
-                        sb.AppendLine($"{metricName}{{vessel=\"{SanitizeLabelValue(DataExport.ActVess.GetDisplayName())}\",category=\"{category.ToString().ToLower()}\"}} {numericValue}");
-                        sb.AppendLine();
-                    }
-                }
-
+            if (snapshot == null || string.IsNullOrEmpty(snapshot.VesselName))
+            {
                 return sb.ToString();
             }
+
+            string vesselName = SanitizeLabelValue(snapshot.VesselName);
+
+            // Add mission time as gauge (resets on revert, so counter is inappropriate)
+            sb.AppendLine("# HELP ksp_mission_time_seconds Mission elapsed time in seconds");
+            sb.AppendLine("# TYPE ksp_mission_time_seconds gauge");
+            sb.AppendLine($"ksp_mission_time_seconds{{vessel=\"{vesselName}\"}} {snapshot.MissionTime:F2}");
+            sb.AppendLine();
+
+            foreach (var kvp in snapshot.Metrics)
+            {
+                var m = kvp.Value;
+                sb.AppendLine($"# HELP {m.Name} {m.Help}");
+                sb.AppendLine($"# TYPE {m.Name} gauge");
+                sb.AppendLine($"{m.Name}{{vessel=\"{vesselName}\",category=\"{m.Category}\"}} {m.Value}");
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
         ///     Converts a human-readable name to a Prometheus-compliant metric name
         /// </summary>
-        private string ConvertToPrometheusName(string name)
+        private static string ConvertToPrometheusName(string name)
         {
             // Prometheus metric names must match [a-zA-Z_:][a-zA-Z0-9_:]*
             // Convert to lowercase, replace spaces and special chars with underscores
@@ -293,7 +322,7 @@ namespace KSPDataExport
         /// <summary>
         ///     Sanitizes a label value for Prometheus (escapes special characters)
         /// </summary>
-        private string SanitizeLabelValue(string value)
+        private static string SanitizeLabelValue(string value)
         {
             if (string.IsNullOrEmpty(value)) return "";
 

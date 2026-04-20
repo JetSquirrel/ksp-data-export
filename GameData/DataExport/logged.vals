@@ -5,13 +5,21 @@ defaultLogState=False
 prometheusEnabled=True
 prometheusPort=9101
 
+// GreptimeDB Exporter (InfluxDB Line Protocol)
+greptimeEnabled=True
+greptimeUrl=http://localhost:4000
+greptimeDatabase=public
+greptimeUsername=
+greptimePassword=
+greptimeInterval=1
+
 // Vessel
 logSrfSpeed=True
 logGForce=True
 logAcceleration=False
 logThrust=False
 logTWR=True
-logMass=False
+logMass=True
 logPitch=True
 logHeading=False
 logRoll=False
@@ -20,15 +28,15 @@ logMach=False
 
 // Position
 logAltTer=True
-logAltSea=False
-logDownrangeDist=False
+logAltSea=True
+logDownrangeDist=True
 logLat=False
 logLon=False
 
 // Orbit
 logAp=True
 logPe=True
-logTimeToAp=False
+logTimeToAp=True
 logTimeToPe=False
 logInc=True
 logOrbVel=True
@@ -40,7 +48,7 @@ logTargVel=False
 
 // Resources
 logStageDV=False
-logVesselDV=False
+logVesselDV=True
 
 // Science
 logPressure=False
